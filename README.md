@@ -49,6 +49,19 @@ Join the community on Slack at [https://atomicredteam.slack.com](https://atomicr
 * Have questions? Join the community on Slack at [https://atomicredteam.slack.com](https://atomicredteam.slack.com)
     * Need a Slack invitation? Grab one at [https://slack.atomicredteam.io/](https://slack.atomicredteam.io/)
 
+## Install Cyborg Security Atomics
+
+**NOTE** Cyborg Security's custom tests are located in the "Cyborg" branch of this repository
+
+1. Follow the "Getting Started" section above to install all of the atomics from Atomic Red Team
+2. Once installed, run the following two commands:
+
+    - ```IEX (IWR 'https://raw.githubusercontent.com/redcanaryco/invoke-atomicredteam/master/install-atomicsfolder.ps1')```
+    - ```Install-AtomicsFolder -RepoOwner cyborgsecurity -Branch Cyborg -InstallPath "C:\AtomicRedTeam\Cyborg" -Force```
+  
+3. All tests will be available in ```C:\AtomicRedTeam\Cyborg\atomics``` for Windows
+4. Test your installation: ```Invoke-AtomicTest Emotet -PathToAtomicsFolder C:\AtomicRedTeam\Cyborg\atomics -ShowDetailsBrief```
+
 ## Code of Conduct
 
 In order to have a more open and welcoming community, Atomic Red Team adheres to a
