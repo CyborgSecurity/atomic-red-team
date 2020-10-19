@@ -89,7 +89,7 @@ atomic_tests:
             description: Name of the final executable powershell will start (omit
                 extension)
             type: String
-            default: Panaor
+            default: rip_exedoc
         download_url:
             description: Where to download the executable
             type: Url
@@ -97,26 +97,25 @@ atomic_tests:
         executable_location:
             description: Where to save the downloaded executable
             type: String
-            default: $env:temp\
+            default: $env:USERPROFILE\
         email_filename:
             description: What file name for the saved email file (omit extension)
             type: String
-            default: conf-072320XFR-072020
+            default: marie-blossom
         email_recipient:
             description: Who do you want the email to appear to be sent to (Sender
                 is not currently supported)
             type: String
-            default: support@example.com
+            default: marie.blossom@mabloss.com
         email_subject:
             description: What subject to add to the email
             type: String
-            default: CONF-072320 XFR-072020 Transfer
+            default: Marie Blossom
         email_body:
             description: What text to put into the email body, must be single line
                 with <backtick>r<backtick>n for new lines
             type: String
-            default: Attached is the last ACH transfer for ```$9,630.76`r`n`r`nSteven
-                Haus`r`n`r`nSupport
+            default: See attached`r`n`r`n`r`nShiela Danond`r`n
         email_savepath:
             description: Where should the email be stored. This can be changed to
                 Outlook TEMP folder if desired (Windows 10 - $env:USERPROFILE\AppData\Local\Microsoft\Windows\INetCache,
@@ -130,11 +129,11 @@ atomic_tests:
                 Win 7 - $env:USERPROFILE\AppData\Local\Microsoft\Windows\Temporary
                 Internet Files)
             type: String
-            default: $env:USERPROFILE\
+            default: $env:temp\
         doc_name:
             description: Name of the document to attach to the email
             type: String
-            default: ACH-072020
+            default: FILE_223472348949
         doc_image_location:
             description: Name of the image to insert into the document
             type: String
